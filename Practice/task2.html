@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee Attendance Processing</title>
+    <style>
+        body {
+            font-family: Arial;
+        }
+        #outputBox {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px solid black;
+            width: 400px;
+            background: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Employee Attendance Processing System</h2>
+
+<div id="outputBox">
+    <b>Output will appear here...</b>
+</div>
+
+<script>
+// ------------------ Helper: Convert HH:MM to minutes ------------------
+function toMinutes(timeString) {
+    if (!timeString) throw new Error("Time value missing");
+
+    const parts = timeString.split(":");
+    if (parts.length !== 2) throw new Error("Invalid time format");
+
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+
+    if (isNaN(hours) || isNaN(minutes)) throw new Error("Time contains non-numeric values");
+
+    return hours * 60 + minutes;
+}
+
+// ------------------ Main Function ------------------
+function processAttendance(attendance) {
+    const input = JSON.parse(JSON.stringify(attendance)); // Do not modify original
+
+    let result = {
+        employeeId: input.employeeId || "Unknown",
+        date: input.date || "Unknown",
+        status: "",
+        totalWorkingMinutes: 0,
+        overtimeMinutes: 0,
+        note: "",
+        error: ""
+    };
+
+    try {
+        if (!input.checkIn || !input.checkOut) {
+            result.status = "incomplete";
+            result.note = "Missing check-in or check-out time";
+            return result;
+        }
+
+        const checkInMin = toMinutes(input.checkIn);
+        const checkOutMin = toMinutes(input.checkOut);
+
+        let breakMinutes = 0;
+
+        if (input.breakStart && input.breakEnd) {
+            breakMinutes = toMinutes(input.breakEnd) - toMinutes(input.breakStart);
+            if (breakMinutes < 0) breakMinutes = 30;
+        } else if (input.breakStart && !input.breakEnd) {
+            breakMinutes = 30;
+        }
+
+        let total = checkOutMin - checkInMin - breakMinutes;
+
+        if (total < 0) {
+            result.status = "invalid";
+            result.note = "Working time calculated as negative";
+            return result;
+        }
+
+        result.status = "complete";
+        result.totalWorkingMinutes = total;
+
+        if (input.overtimeApproved === true && total > 480) {
+            result.overtimeMinutes = total - 480;
+        }
+
+    } catch (err) {
+        result.status = "error";
+        result.error = err.message;
+        result.note = "Error occurred during processing";
+    } finally {
+        console.log("Attendance processed successfully (finally block executed)");
+    }
+
+    return result;
+}
+
+// ------------------ Test Input ------------------
+const sampleInput = {
+    employeeId: "EMP102",
+    date: "2025-02-15",
+    checkIn: "09:00",
+    checkOut: "18:30",
+    breakStart: "13:00",
+    breakEnd: null,
+    overtimeApproved: true
+};
+
+// Run
+const output = processAttendance(sampleInput);
+
+// Display on screen
+document.getElementById("outputBox").innerHTML =
+    "<b>Employee Attendance Summary:</b><br><br>" +
+    "Employee ID: " + output.employeeId + "<br>" +
+    "Date: " + output.date + "<br>" +
+    "Status: <b>" + output.status + "</b><br>" +
+    "Working Minutes: " + output.totalWorkingMinutes + "<br>" +
+    "Overtime Minutes: " + output.overtimeMinutes + "<br>" +
+    "Note: " + output.note + "<br>" +
+    (output.error ? ("Error: " + output.error) : "");
+
+</script>
+
+</body>
+</html>
